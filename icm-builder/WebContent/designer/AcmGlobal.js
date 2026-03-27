@@ -17,7 +17,7 @@ define(function () {
 	var AcmGlobal = {
 		// Reference of SolutionHomw Widget
 		solutionHome				: null,
-		designerHome				: null,
+		designerHome				: null
 		// Reference of first invalid field
 		invalidField				: null,
 		propsDetails				: null,
