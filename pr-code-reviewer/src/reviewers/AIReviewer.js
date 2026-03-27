@@ -48,6 +48,8 @@ export class AIReviewer {
 
       // Parse the response
       const aiResponse = response.choices[0]?.message?.content;
+      this.logger.info(`AI raw response for ${filename}: ${aiResponse}`);
+      
       if (aiResponse) {
         const parsedIssues = this.parseAIResponse(aiResponse, filename);
         issues.push(...parsedIssues);

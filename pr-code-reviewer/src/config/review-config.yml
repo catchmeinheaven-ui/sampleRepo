@@ -219,44 +219,39 @@ ai_review:
       Format response as JSON array: [{"type": "syntax_error", "severity": "critical", "title": "...", "message": "...", "line": 10, "suggestion": "..."}]
     
     review_template: |
-      CRITICAL: Check for compilation/syntax errors FIRST!
+      YOU ARE A JAVA COMPILER. Your job is to find COMPILATION ERRORS that will prevent the code from compiling.
       
       File: {file_path}
       Language: {extension}
       
-      CODE DIFF (lines starting with + are ADDED, lines with - are REMOVED):
+      CODE DIFF (lines with + are NEW/CHANGED code):
       {diff}
       
-      ANALYZE EVERY LINE WITH + (ADDED CODE) FOR:
+      CRITICAL COMPILATION ERRORS TO FIND:
       
-      1. SYNTAX ERRORS (CRITICAL):
-         - Missing semicolons at end of statements
-         - Missing closing brackets/parentheses
-         - Type mismatches (e.g., int x = "string")
-         - Undefined variables or functions
-         - Wrong data types in assignments
+      1. TYPE MISMATCHES (WILL NOT COMPILE):
+         Example: private int top; ... this.top = "string";
+         → This is CRITICAL ERROR: Cannot assign String to int variable
+         
+      2. MISSING SEMICOLONS (WILL NOT COMPILE):
+         Example: int x = 5
+         → This is CRITICAL ERROR: Missing semicolon
       
-      2. LOGIC ERRORS (HIGH):
-         - Null pointer risks
-         - Array index out of bounds
-         - Division by zero
-         - Infinite loops
+      3. UNDEFINED VARIABLES (WILL NOT COMPILE):
+         Example: x = 5; (where x is not declared)
+         → This is CRITICAL ERROR: Variable not declared
       
-      3. SECURITY (HIGH):
-         - SQL injection, XSS
-         - Hardcoded credentials
+      INSTRUCTIONS:
+      - Look at EVERY line starting with + (these are the new/changed lines)
+      - Check if the code will compile
+      - If you find "this.top = \"string\"" where top is declared as int → FLAG IT AS CRITICAL
+      - If you find missing semicolons → FLAG THEM AS CRITICAL
+      - If code compiles successfully → return []
       
-      4. PERFORMANCE (MEDIUM):
-         - Memory leaks
-         - Inefficient algorithms
+      RESPONSE FORMAT (JSON only):
+      [{"type": "type_mismatch", "severity": "critical", "title": "Type mismatch: Cannot assign String to int", "message": "Variable 'top' is declared as int but assigned a String value", "line": 1, "suggestion": "Remove the string assignment or change variable type"}]
       
-      IMPORTANT:
-      - Focus ONLY on lines starting with + (new/changed code)
-      - If you see "int x = "string"" → FLAG as CRITICAL type mismatch
-      - If you see missing semicolon → FLAG as CRITICAL syntax error
-      - If code is perfect, return empty array []
-      
-      Return JSON array: [{"type": "syntax_error", "severity": "critical", "title": "Missing semicolon", "message": "Line X is missing a semicolon", "line": X, "suggestion": "Add semicolon at end"}]
+      If NO errors found, return: []
 
 # GitHub integration
 github:
