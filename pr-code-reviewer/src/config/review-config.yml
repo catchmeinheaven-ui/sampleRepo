@@ -38,10 +38,10 @@ security:
   
   patterns:
     credentials:
-      - 'password\s*=\s*["\'].*["\']'
-      - 'api[_-]?key\s*=\s*["\'].*["\']'
-      - 'secret\s*=\s*["\'].*["\']'
-      - 'token\s*=\s*["\'].*["\']'
+      - "password\\s*=\\s*[\"'].*[\"']"
+      - "api[_-]?key\\s*=\\s*[\"'].*[\"']"
+      - "secret\\s*=\\s*[\"'].*[\"']"
+      - "token\\s*=\\s*[\"'].*[\"']"
     
     sql_injection:
       - 'execute\s*\(\s*["\'].*\+.*["\']'
