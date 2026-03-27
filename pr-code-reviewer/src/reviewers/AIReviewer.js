@@ -70,17 +70,18 @@ export class AIReviewer {
   buildPrompt(filename, content, extension) {
     const template = this.config.prompts?.review_template || this.getDefaultReviewTemplate();
 
-    // Truncate content if too long
-    const maxContentLength = 8000;
-    const truncatedContent = content.length > maxContentLength
-      ? content.substring(0, maxContentLength) + '\n... (truncated)'
+    // No truncation - send complete file to AI
+    // GPT-4o-mini can handle large context windows
+    
+    // Log only first 2000 chars to avoid cluttering logs
+    const logContent = content.length > 2000
+      ? content.substring(0, 2000) + `\n... (${content.length} total chars, truncated for logging only)`
       : content;
-
-    this.logger.info(`Diff content being sent to AI for ${filename}:\n${truncatedContent}`);
+    this.logger.info(`Sending ${content.length} chars to AI for ${filename}:\n${logContent}`);
 
     return template
       .replace('{file_path}', filename)
-      .replace('{diff}', truncatedContent)
+      .replace('{diff}', content)  // Send full content, no truncation
       .replace('{extension}', extension);
   }
 
