@@ -3,22 +3,26 @@
 
 review_settings:
   # Enable/disable specific review categories
+  # Focus on critical issues only - act like a senior developer
   enabled_checks:
     - security
     - performance
     - maintainability
-    - style
-    - documentation
-    - testing
   
   # Severity levels: critical, high, medium, low
-  min_severity_to_comment: medium
+  # Only comment on HIGH and CRITICAL issues (ignore style nitpicks)
+  min_severity_to_comment: high
   
   # Auto-approve PRs that pass all checks
   auto_approve_on_success: false
   
   # Request changes if critical issues found
   request_changes_on_critical: true
+  
+  # Ignore low-priority issues
+  ignore_style_issues: true
+  ignore_documentation_issues: true
+  ignore_formatting_issues: true
 
 # Security checks
 security:
@@ -81,58 +85,20 @@ maintainability:
     max_nesting_depth: 4
     min_variable_name_length: 3
 
-# Style and formatting
+# Style and formatting (DISABLED - focus on critical issues only)
 style:
-  enabled: true
-  checks:
-    - inconsistent_formatting
-    - naming_conventions
-    - import_organization
-    - comment_quality
-  
-  conventions:
-    javascript:
-      naming: camelCase
-      indent: 2
-      quotes: single
-    
-    java:
-      naming: camelCase
-      indent: 4
-      quotes: double
-    
-    python:
-      naming: snake_case
-      indent: 4
-      quotes: single
+  enabled: false
+  checks: []
 
-# Documentation requirements
+# Documentation requirements (DISABLED - focus on critical issues only)
 documentation:
-  enabled: true
-  checks:
-    - missing_function_docs
-    - missing_class_docs
-    - outdated_comments
-    - unclear_comments
-  
-  requirements:
-    require_function_docs: true
-    require_class_docs: true
-    require_complex_logic_comments: true
-    min_comment_quality_score: 7
+  enabled: false
+  checks: []
 
-# Testing requirements
+# Testing requirements (DISABLED - focus on critical issues only)
 testing:
-  enabled: true
-  checks:
-    - missing_tests
-    - low_coverage
-    - test_quality
-  
-  requirements:
-    min_coverage_percent: 80
-    require_unit_tests: true
-    require_integration_tests: false
+  enabled: false
+  checks: []
 
 # Language-specific configurations
 languages:
@@ -187,26 +153,47 @@ ai_review:
   
   prompts:
     system: |
-      You are an expert code reviewer with deep knowledge of software engineering best practices,
-      security vulnerabilities, and performance optimization. Review the code changes and provide
-      constructive feedback focusing on:
-      - Security vulnerabilities
-      - Performance issues
-      - Code maintainability
-      - Best practices violations
-      - Potential bugs
+      You are a SENIOR SOFTWARE ENGINEER reviewing code like an experienced tech lead.
+      
+      FOCUS ONLY ON CRITICAL ISSUES:
+      - Build-breaking errors (syntax errors, compilation issues)
+      - Logic errors that cause incorrect behavior
+      - Security vulnerabilities (SQL injection, XSS, hardcoded secrets)
+      - Performance bottlenecks (N+1 queries, memory leaks, infinite loops)
+      - Race conditions and concurrency issues
+      - Null pointer exceptions and error handling gaps
+      
+      IGNORE THESE (not important):
+      - Code formatting (spaces, tabs, line length)
+      - Missing Javadoc or comments
+      - Naming conventions (unless truly confusing)
+      - Style guide violations
+      - Minor refactoring suggestions
+      
+      Be concise and actionable. Only flag issues that would cause:
+      1. Build failures
+      2. Runtime errors
+      3. Security breaches
+      4. Data corruption
+      5. Performance degradation
     
     review_template: |
-      Review the following code changes and provide detailed feedback:
+      Review the following code changes as a SENIOR DEVELOPER:
       
       File: {file_path}
       Changes: {diff}
       
-      Provide specific, actionable feedback with:
-      1. Issue description
-      2. Severity level (critical/high/medium/low)
-      3. Suggested fix
-      4. Code example if applicable
+      Only report HIGH or CRITICAL issues that affect:
+      - Correctness (will it work?)
+      - Security (is it safe?)
+      - Performance (will it scale?)
+      
+      For each issue provide:
+      1. What will break or fail
+      2. Severity: CRITICAL or HIGH only
+      3. How to fix it (with code example)
+      
+      Skip style, formatting, and documentation issues.
 
 # GitHub integration
 github:

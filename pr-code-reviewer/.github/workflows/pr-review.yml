@@ -70,16 +70,29 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Run security scan
+      - name: Run security scan (Critical Issues Only)
         uses: github/super-linter@v5
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VALIDATE_ALL_CODEBASE: false
           DEFAULT_BRANCH: ${{ github.event.pull_request.base.ref }}
           FILTER_REGEX_EXCLUDE: '.*test.*|.*mock.*|.*node_modules.*'
+          
+          # Disable style/formatting linters (focus on critical issues)
+          VALIDATE_JAVASCRIPT_STANDARD: false
+          VALIDATE_JAVASCRIPT_ES: false
+          VALIDATE_JSCPD: false
+          VALIDATE_JAVA: false
+          
+          # Keep only security-critical linters
+          VALIDATE_GITLEAKS: true
+          VALIDATE_GITHUB_ACTIONS: true
+          
+          # Suppress warnings, only show errors
+          LINTER_RULES_PATH: /
 
-      - name: Run dependency check
+      - name: Run dependency security check
         run: |
-          npm audit --audit-level=moderate || true
+          npm audit --audit-level=high || true
 
 # Made with Bob
