@@ -272,7 +272,7 @@ define(function () {
 			if (ACM.invalidField) {
 				ACM.invalidField.focus();
 				ACM.invalidField = null;
-				ACM.success();
+				
 			}
 		}
 	};
