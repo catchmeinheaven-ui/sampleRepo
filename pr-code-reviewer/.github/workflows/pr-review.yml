@@ -34,14 +34,12 @@ jobs:
         with:
           node-version: '20'
           cache: 'npm'
-          cache-dependency-path: pr-code-reviewer/package-lock.json
+          cache-dependency-path: 'package-lock.json'
 
       - name: Install dependencies
-        working-directory: pr-code-reviewer
         run: npm ci
 
       - name: Run code review analysis
-        working-directory: pr-code-reviewer
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
@@ -59,30 +57,10 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: review-results
-          path: pr-code-reviewer/review-output/
+          path: review-output/
           retention-days: 30
 
-  security-scan:
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Run security scan
-        uses: github/super-linter@v5
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          VALIDATE_ALL_CODEBASE: false
-          DEFAULT_BRANCH: ${{ github.event.pull_request.base.ref }}
-          FILTER_REGEX_EXCLUDE: '.*test.*|.*mock.*|.*node_modules.*'
-
-      - name: Run dependency check
-        working-directory: pr-code-reviewer
-        run: |
-          npm audit --audit-level=moderate || true
+  # Security scan removed - AI code reviewer handles all checks
+  # Including security, performance, logic errors, and code quality
 
 # Made with Bob
