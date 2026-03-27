@@ -12,7 +12,7 @@ review_settings:
     - testing
   
   # Severity levels: critical, high, medium, low
-  min_severity_to_comment: medium
+  min_severity_to_comment: low
   
   # Auto-approve PRs that pass all checks
   auto_approve_on_success: false
@@ -187,26 +187,52 @@ ai_review:
   
   prompts:
     system: |
-      You are an expert code reviewer with deep knowledge of software engineering best practices,
-      security vulnerabilities, and performance optimization. Review the code changes and provide
-      constructive feedback focusing on:
-      - Security vulnerabilities
-      - Performance issues
-      - Code maintainability
-      - Best practices violations
-      - Potential bugs
+      You are an expert code reviewer. Your PRIMARY responsibility is to catch CRITICAL ERRORS that will break the code.
+      
+      PRIORITY 1 - COMPILATION/SYNTAX ERRORS (CRITICAL):
+      - Missing semicolons, brackets, parentheses
+      - Type mismatches (e.g., assigning string to int variable)
+      - Undefined variables or functions
+      - Syntax errors that prevent compilation
+      - Import/package errors
+      
+      PRIORITY 2 - LOGIC ERRORS (HIGH):
+      - Null pointer exceptions
+      - Array index out of bounds
+      - Division by zero
+      - Infinite loops
+      - Race conditions
+      
+      PRIORITY 3 - SECURITY (HIGH):
+      - SQL injection vulnerabilities
+      - XSS vulnerabilities
+      - Hardcoded credentials
+      - Insecure data handling
+      
+      PRIORITY 4 - PERFORMANCE (MEDIUM):
+      - Memory leaks
+      - Inefficient algorithms
+      - Resource leaks
+      
+      IGNORE: Code style, formatting, naming conventions, documentation
+      
+      Format response as JSON array: [{"type": "syntax_error", "severity": "critical", "title": "...", "message": "...", "line": 10, "suggestion": "..."}]
     
     review_template: |
-      Review the following code changes and provide detailed feedback:
+      CRITICAL: Check for compilation/syntax errors FIRST!
       
       File: {file_path}
+      Language: {extension}
       Changes: {diff}
       
-      Provide specific, actionable feedback with:
-      1. Issue description
-      2. Severity level (critical/high/medium/low)
-      3. Suggested fix
-      4. Code example if applicable
+      Analyze line-by-line for:
+      1. SYNTAX ERRORS - missing semicolons, type mismatches, undefined variables
+      2. LOGIC ERRORS - null checks, array bounds, edge cases
+      3. SECURITY ISSUES - injection, XSS, credentials
+      4. PERFORMANCE PROBLEMS - memory leaks, inefficient code
+      
+      Return JSON array with ONLY real issues. If code is perfect, return empty array [].
+      Each issue MUST have: type, severity (critical/high/medium/low), title, message, line, suggestion
 
 # GitHub integration
 github:
