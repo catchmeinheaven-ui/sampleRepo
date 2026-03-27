@@ -20,7 +20,7 @@ define(function () {
 		designerHome				: null,
 		// Reference of first invalid field
 		invalidField				: null,
-		propsDetails				: null
+		propsDetails				: null,
 		
 		// Reference of ActivityEditor Widget
 		activityEditor				: null,
