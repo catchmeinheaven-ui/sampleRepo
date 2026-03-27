@@ -229,11 +229,12 @@ ai_review:
       
       CRITICAL ERRORS TO FIND:
       
-      1. MISSING COMMAS in object/array literals:
-         JavaScript: { a: 1, b: 2 c: 3 } → MISSING COMMA after b: 2
-         Python: [1, 2 3] → MISSING COMMA after 2
+      1. MISSING COMMAS BETWEEN properties/elements (NOT trailing commas):
+         WRONG: { a: 1, b: 2 c: 3 } → MISSING COMMA between b: 2 and c: 3
+         CORRECT: { a: 1, b: 2 } → No comma needed before closing brace
+         WRONG: invalidField: null propsDetails: null → MISSING COMMA between properties
          
-      2. MISSING SEMICOLONS (where required):
+      2. MISSING SEMICOLONS (where required by language):
          JavaScript/Java/C++: int x = 5 → MISSING SEMICOLON
          
       3. TYPE MISMATCHES:
@@ -248,15 +249,19 @@ ai_review:
       5. UNDEFINED VARIABLES:
          Using variables before declaration
       
+      IMPORTANT RULES:
+      - Trailing commas before } or ] are OPTIONAL and VALID - DO NOT flag them
+      - Only flag missing commas when there's ANOTHER property/element after it
+      - Example of REAL error: property1: value1 property2: value2 (missing comma BETWEEN)
+      - Example of NOT an error: property1: value1, property2: value2 } (no comma before })
+      
       INSTRUCTIONS:
       - Analyze the ENTIRE file for syntax errors
-      - Pay special attention to object literals, arrays, and punctuation
-      - Check EVERY comma, semicolon, bracket
-      - If you see two properties without a comma between them → FLAG IT
-      - Example: invalidField: null propsDetails: null → MISSING COMMA
+      - Focus on commas BETWEEN items, not trailing commas
+      - Check for unclosed brackets, type mismatches, undefined variables
       
       RESPONSE FORMAT (JSON array only, no markdown):
-      [{"type": "syntax_error", "severity": "critical", "title": "Missing comma in object literal", "message": "Missing comma after 'invalidField: null' on line 22", "line": 22, "suggestion": "Add comma after invalidField: null"}]
+      [{"type": "syntax_error", "severity": "critical", "title": "Missing comma between properties", "message": "Missing comma after 'invalidField: null' on line 22. Next property 'propsDetails' starts without comma.", "line": 22, "suggestion": "Add comma after invalidField: null"}]
       
       If NO errors, return: []
 
