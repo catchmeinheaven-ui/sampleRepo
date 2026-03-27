@@ -28,7 +28,7 @@ public class Stack<T> {
         }
         this.capacity = capacity;
         this.elements = new Object[capacity];
-        this.top = "adbadc";
+        this.top = "what";
     }
 
     /**
