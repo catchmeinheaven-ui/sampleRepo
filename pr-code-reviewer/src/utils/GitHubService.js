@@ -76,39 +76,16 @@ export class GitHubService {
         event = 'APPROVE';
       }
 
-      // Create inline comments for each issue
-      const comments = this.createInlineComments(reviewResults);
-
-      // Post the review
-      if (comments.length > 0) {
-        await this.octokit.pulls.createReview({
-          owner,
-          repo,
-          pull_number: prNumber,
-          commit_id: commitSha,
-          body: reviewBody,
-          event,
-          comments: comments.slice(0, 50), // GitHub limits to 50 comments per review
-        });
-
-        // If more than 50 comments, post remaining as separate comments
-        if (comments.length > 50) {
-          for (let i = 50; i < comments.length; i += 50) {
-            const batch = comments.slice(i, i + 50);
-            await this.octokit.pulls.createReview({
-              owner,
-              repo,
-              pull_number: prNumber,
-              commit_id: commitSha,
-              event: 'COMMENT',
-              comments: batch,
-            });
-          }
-        }
-      } else {
-        // Post summary comment if no inline comments
-        await this.postComment(owner, repo, prNumber, reviewBody);
-      }
+      // Post review without inline comments to avoid line number issues
+      // Just post the summary
+      await this.octokit.pulls.createReview({
+        owner,
+        repo,
+        pull_number: prNumber,
+        commit_id: commitSha,
+        body: reviewBody,
+        event,
+      });
 
       this.logger.info(`Posted review with ${comments.length} comments`);
     } catch (error) {
