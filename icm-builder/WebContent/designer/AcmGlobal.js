@@ -19,7 +19,7 @@ define(function () {
 		solutionHome				: null,
 		designerHome				: null,
 		// Reference of first invalid field
-		invalidField				: null
+		invalidField				: null,
 		propsDetails				: null,
 		
 		// Reference of ActivityEditor Widget
