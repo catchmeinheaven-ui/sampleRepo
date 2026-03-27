@@ -1,0 +1,255 @@
+# Code Review Configuration
+# This file defines the rules and standards for automated code reviews
+
+review_settings:
+  # Enable/disable specific review categories
+  enabled_checks:
+    - security
+    - performance
+    - maintainability
+    - style
+    - documentation
+    - testing
+  
+  # Severity levels: critical, high, medium, low
+  min_severity_to_comment: medium
+  
+  # Auto-approve PRs that pass all checks
+  auto_approve_on_success: false
+  
+  # Request changes if critical issues found
+  request_changes_on_critical: true
+
+# Security checks
+security:
+  enabled: true
+  checks:
+    - hardcoded_credentials
+    - sql_injection
+    - xss_vulnerabilities
+    - insecure_dependencies
+    - sensitive_data_exposure
+    - authentication_issues
+    - authorization_flaws
+  
+  patterns:
+    credentials:
+      - 'password\s*=\s*["\'].*["\']'
+      - 'api[_-]?key\s*=\s*["\'].*["\']'
+      - 'secret\s*=\s*["\'].*["\']'
+      - 'token\s*=\s*["\'].*["\']'
+    
+    sql_injection:
+      - 'execute\s*\(\s*["\'].*\+.*["\']'
+      - 'query\s*\(\s*["\'].*\+.*["\']'
+    
+    xss:
+      - 'innerHTML\s*='
+      - 'document\.write\s*\('
+      - 'eval\s*\('
+
+# Performance checks
+performance:
+  enabled: true
+  checks:
+    - inefficient_loops
+    - memory_leaks
+    - blocking_operations
+    - unnecessary_computations
+    - large_file_operations
+  
+  thresholds:
+    max_function_lines: 100
+    max_file_lines: 500
+    max_complexity: 15
+    max_nested_loops: 3
+
+# Code maintainability
+maintainability:
+  enabled: true
+  checks:
+    - code_duplication
+    - long_functions
+    - complex_conditionals
+    - magic_numbers
+    - poor_naming
+    - missing_error_handling
+  
+  standards:
+    max_function_length: 50
+    max_parameters: 5
+    max_nesting_depth: 4
+    min_variable_name_length: 3
+
+# Style and formatting
+style:
+  enabled: true
+  checks:
+    - inconsistent_formatting
+    - naming_conventions
+    - import_organization
+    - comment_quality
+  
+  conventions:
+    javascript:
+      naming: camelCase
+      indent: 2
+      quotes: single
+    
+    java:
+      naming: camelCase
+      indent: 4
+      quotes: double
+    
+    python:
+      naming: snake_case
+      indent: 4
+      quotes: single
+
+# Documentation requirements
+documentation:
+  enabled: true
+  checks:
+    - missing_function_docs
+    - missing_class_docs
+    - outdated_comments
+    - unclear_comments
+  
+  requirements:
+    require_function_docs: true
+    require_class_docs: true
+    require_complex_logic_comments: true
+    min_comment_quality_score: 7
+
+# Testing requirements
+testing:
+  enabled: true
+  checks:
+    - missing_tests
+    - low_coverage
+    - test_quality
+  
+  requirements:
+    min_coverage_percent: 80
+    require_unit_tests: true
+    require_integration_tests: false
+
+# Language-specific configurations
+languages:
+  javascript:
+    enabled: true
+    file_extensions: ['.js', '.jsx', '.ts', '.tsx']
+    linters: ['eslint']
+    
+  java:
+    enabled: true
+    file_extensions: ['.java']
+    linters: ['checkstyle', 'pmd']
+    
+  python:
+    enabled: true
+    file_extensions: ['.py']
+    linters: ['pylint', 'flake8']
+    
+  go:
+    enabled: true
+    file_extensions: ['.go']
+    linters: ['golint', 'go vet']
+
+# File exclusions
+exclusions:
+  paths:
+    - 'node_modules/**'
+    - 'dist/**'
+    - 'build/**'
+    - 'target/**'
+    - '*.min.js'
+    - '*.test.js'
+    - '*.spec.js'
+    - 'test/**'
+    - 'tests/**'
+    - '__tests__/**'
+    - 'vendor/**'
+    - '.git/**'
+  
+  file_patterns:
+    - '*.lock'
+    - '*.log'
+    - '*.md'
+    - '*.txt'
+
+# AI Review settings
+ai_review:
+  enabled: true
+  model: 'gpt-4'
+  max_tokens: 4000
+  temperature: 0.3
+  
+  prompts:
+    system: |
+      You are an expert code reviewer with deep knowledge of software engineering best practices,
+      security vulnerabilities, and performance optimization. Review the code changes and provide
+      constructive feedback focusing on:
+      - Security vulnerabilities
+      - Performance issues
+      - Code maintainability
+      - Best practices violations
+      - Potential bugs
+    
+    review_template: |
+      Review the following code changes and provide detailed feedback:
+      
+      File: {file_path}
+      Changes: {diff}
+      
+      Provide specific, actionable feedback with:
+      1. Issue description
+      2. Severity level (critical/high/medium/low)
+      3. Suggested fix
+      4. Code example if applicable
+
+# GitHub integration
+github:
+  # Comment on PR with review results
+  post_comments: true
+  
+  # Create review with approve/request changes
+  create_review: true
+  
+  # Add labels based on review results
+  add_labels: true
+  
+  labels:
+    needs_security_review: 'security-review-needed'
+    needs_performance_review: 'performance-review-needed'
+    approved: 'code-review-approved'
+    changes_requested: 'changes-requested'
+  
+  # Review comment format
+  comment_format: |
+    ## 🤖 Automated Code Review
+    
+    {summary}
+    
+    ### Issues Found: {issue_count}
+    
+    {issues}
+    
+    ---
+    *This review was automatically generated. Please review the suggestions and make necessary changes.*
+
+# Notification settings
+notifications:
+  slack:
+    enabled: false
+    webhook_url: ''
+    channels:
+      critical: '#code-review-critical'
+      general: '#code-review'
+  
+  email:
+    enabled: false
+    recipients: []
+    smtp_server: ''
+
+# Made with Bob
