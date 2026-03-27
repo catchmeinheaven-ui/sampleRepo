@@ -223,16 +223,40 @@ ai_review:
       
       File: {file_path}
       Language: {extension}
-      Changes: {diff}
       
-      Analyze line-by-line for:
-      1. SYNTAX ERRORS - missing semicolons, type mismatches, undefined variables
-      2. LOGIC ERRORS - null checks, array bounds, edge cases
-      3. SECURITY ISSUES - injection, XSS, credentials
-      4. PERFORMANCE PROBLEMS - memory leaks, inefficient code
+      CODE DIFF (lines starting with + are ADDED, lines with - are REMOVED):
+      {diff}
       
-      Return JSON array with ONLY real issues. If code is perfect, return empty array [].
-      Each issue MUST have: type, severity (critical/high/medium/low), title, message, line, suggestion
+      ANALYZE EVERY LINE WITH + (ADDED CODE) FOR:
+      
+      1. SYNTAX ERRORS (CRITICAL):
+         - Missing semicolons at end of statements
+         - Missing closing brackets/parentheses
+         - Type mismatches (e.g., int x = "string")
+         - Undefined variables or functions
+         - Wrong data types in assignments
+      
+      2. LOGIC ERRORS (HIGH):
+         - Null pointer risks
+         - Array index out of bounds
+         - Division by zero
+         - Infinite loops
+      
+      3. SECURITY (HIGH):
+         - SQL injection, XSS
+         - Hardcoded credentials
+      
+      4. PERFORMANCE (MEDIUM):
+         - Memory leaks
+         - Inefficient algorithms
+      
+      IMPORTANT:
+      - Focus ONLY on lines starting with + (new/changed code)
+      - If you see "int x = "string"" → FLAG as CRITICAL type mismatch
+      - If you see missing semicolon → FLAG as CRITICAL syntax error
+      - If code is perfect, return empty array []
+      
+      Return JSON array: [{"type": "syntax_error", "severity": "critical", "title": "Missing semicolon", "message": "Line X is missing a semicolon", "line": X, "suggestion": "Add semicolon at end"}]
 
 # GitHub integration
 github:
