@@ -1,0 +1,870 @@
+//test
+buildscript {
+    // Get userID_pass or ARTIFACTORY_PASSWORD
+    if (System.getenv('userID_pass')) {
+        println 'Using userID_pass for Artifactory password'
+        ext.artifactoryPassword = System.getenv('userID_pass')
+    }
+    else {
+        println 'Using ARTIFACTORY_PASSWORD for Artifactory password'
+        ext.artifactoryPassword = ARTIFACTORY_PASSWORD
+    }
+    
+    repositories {
+        maven {
+            url ARTIFACTORY_URL + '/ecmcase-remote-jcenter/'
+            credentials {
+                username = ARTIFACTORY_USERNAME
+                password = artifactoryPassword
+            }
+            name = "maven-main-cache"
+        }
+    }
+    dependencies {
+        classpath "org.jfrog.buildinfo:build-info-extractor-gradle:3.0.3"
+        classpath "org.codehaus.groovy.modules.http-builder:http-builder:+"
+    }
+}
+
+apply plugin: 'eclipse'
+apply plugin: 'java'
+apply plugin: 'maven'
+apply plugin: 'maven-publish'
+apply plugin: 'project-report'
+apply plugin: 'com.jfrog.artifactory'
+
+// Load root common.properties
+ext.commonProp = new Properties()
+commonProp.load(new FileInputStream(file('common.properties')))
+
+// Load build.properties.  If not present, use a Snapshot version.
+ext.buildProp = new Properties()
+def versionICN = commonProp.productversion + '-SNAPSHOT'
+if (file('build.properties').exists()) {
+    buildProp.load(new FileInputStream(file('build.properties')))
+    
+    // Get release number without fix pack
+    int fpDotIndex = commonProp.productversion.lastIndexOf(".");
+    String releaseStr = commonProp.productversion.substring(0, fpDotIndex);
+    println "Release Number: " + releaseStr
+    
+    // Determine Fix Pack number
+    // Find the release number, then use that to get the fix pack index
+    int fpIndex = buildProp.buildnumber.indexOf(releaseStr) + releaseStr.length() + 1;
+    int dotIndex = buildProp.buildnumber.indexOf(".", fpIndex);
+    int fpVersion = 0;
+    String fpVersionStr = buildProp.buildnumber.substring(fpIndex, dotIndex);
+    println "Fix Pack version: " + fpVersionStr
+    fpVersion = Integer.parseInt(fpVersionStr);
+    
+    // Determine build counter number
+    int lastPeriodIndex = buildProp.buildnumber.lastIndexOf(".");
+    String counterVersionStr = buildProp.buildnumber.substring(lastPeriodIndex + 1);
+    int counterVersion = Integer.parseInt(counterVersionStr);
+    
+    versionICN = releaseStr + "-" + fpVersion + "-" + counterVersion;
+}
+
+def snapshotVersion = commonProp.productversion + '-SNAPSHOT'
+version = buildProp.buildnumber ?: snapshotVersion
+ant.project.setProperty('buildLabel', version)
+println "Version : ${version}"
+println "Version to use for ICN: $versionICN"
+
+defaultTasks 'icmbuilder_build'
+
+// Artifactory repositories (credentials are defined in system properties or the gradle.properties file)
+repositories {
+    maven {   
+        url ARTIFACTORY_URL + '/ecmcase-ext-release-local/'
+        credentials {
+            username = ARTIFACTORY_USERNAME
+            password = artifactoryPassword
+        }
+    }
+    maven {
+        url ARTIFACTORY_URL + '/ecmcase-libs-release-local/'
+        credentials {
+            username = ARTIFACTORY_USERNAME
+            password = artifactoryPassword
+        }
+    }
+	maven {
+        url ARTIFACTORY_URL + '/hyc-cpe-public-maven-local/'
+        credentials {
+            username = ARTIFACTORY_USERNAME
+            password = artifactoryPassword
+        }
+    }
+	maven {   
+        url ARTIFACTORY_URL + '/hyc-baw-build-team-libs-snapshots-maven-local/'
+        credentials {
+            username = ARTIFACTORY_USERNAME
+            password = artifactoryPassword
+        }
+    }
+}
+
+configurations {
+    // ICM built components
+    acmrulesjar
+    icmsolutioneditjar
+    acmapijar
+    casemgmtschemajar
+    acmbuildjar
+    
+    // CPE Jars
+    jacejar
+    pejar
+    peresourcesjar
+    
+    // FDM Jars
+    staxapijar
+    
+    
+    // Third Party Libraries
+    junitjar
+    
+    // JSON4J
+    json4jjar
+    json4japachejar
+    
+    // WAS Libraries
+    j2eejar
+    wsemfjar
+    wsfpemfjar
+    eclipseemfcommonjar
+    eclipseemfecorejar
+    waspublicjar
+
+    
+    // JAXB Libraries
+    jaxb22zip
+    
+    
+    // WODM/ILOG Rules SDK zip
+    ilogrulessdkzip
+
+    // Apache Ant path
+    antzip
+
+    //findbugs
+    findbugszip
+    jslintjar
+
+    pageDesignerzip
+    icmpropertiespvdzip
+    icmpropertiespvrzip
+    icmschemazip
+
+    ibmdojozip
+    idxzip
+
+    icmbuildercp
+    
+    // Java SDK libraries
+    javasdkwin
+    javasdklinux
+	// bpmcaseapi libraries
+	bpmcaseapijar
+	bpmjaxwsjar
+
+	//aspectj Jars
+	aspectjtoolsjar
+	aspectjrtjar
+
+	// audit common log for fisma
+	auditcommonjar
+    bpmreactintegration	
+}
+
+dependencies {
+
+    // ICM built copmonents
+    acmapijar 'com.ibm.icm.icmapi:acmapi:icmapi26.0.000.+@jar'
+    casemgmtschemajar 'com.ibm.icm.icmapi:casemgmtschema:icmapi26.0.000.+@jar'
+    acmbuildjar 'com.ibm.icm.icmclient:acmbuild:icmclient26.0.000.+@jar'
+	
+    //bpmcaseapi jar
+    bpmcaseapijar 'ibm:bpm-caseapi:BPM8600.STANDARD-SNAPSHOT@jar'
+    bpmjaxwsjar 'ibm:bpm-jaxws:BPM8600.STANDARD-SNAPSHOT@jar'
+    bpmreactintegration 'ibm:common-ui:integration-3.0.15@zip'
+
+    icmpropertiespvdzip 'com.ibm.icm.icmproperties:pvd:icmproperties26.0.000.+@zip'
+    icmpropertiespvrzip 'com.ibm.icm.icmproperties:pvr:icmproperties26.0.000.+@zip'
+
+    pageDesignerzip 'com.ibm.icm.icmclient:pageDesigner:icmclient26.0.000.+@zip'
+    icmschemazip 'com.ibm.icm.icmapi:icmschema:icmapi26.0.000.+@zip'
+    // CPE Jars
+    jacejar 'com.ibm.ecm.cpe.content-engine:jace:5.7.0-2-+@jar'
+    pejar 'com.ibm.ecm.cpe.process-engine:pe-api:5.7.0-2-+@jar'
+    peresourcesjar 'com.ibm.ecm.cpe.process-engine:pe-resources:5.7.0-2-+@jar'
+    
+    // FDM Jars
+    staxapijar 'com.ibm.stax:stax-api:1.0.0@jar'
+
+
+    // Third Party Libraries
+    junitjar 'junit:junit:4.4@jar'    
+
+    // JSON4J
+    json4jjar 'com.ibm.ws.prereq:com.ibm.ws.prereq.jaxrs:2.0.0@jar'
+   // json4japachejar 'org.apache.commons.json:JSON4J_Apache:1.0@jar'
+   
+    // WAS Libraries
+    j2eejar 'j2ee:j2ee:1.5@jar'
+    wsemfjar 'com.ibm.ws:com.ibm.ws.emf:2.1.0@jar'
+    wsfpemfjar 'com.ibm.wsfp:com.ibm.wsfp.main:7.0.0@jar'
+    eclipseemfcommonjar 'org.eclipse.emf:org.eclipse.emf.common:2.2.1@jar'
+    eclipseemfecorejar 'org.eclipse.emf:org.eclipse.emf.ecore:2.2.1@jar'
+    waspublicjar 'was_public:was_public:1.0@jar'
+    
+    // JAXB Libraries
+    jaxb22zip 'javax.xml.bind:jaxb-ri:2.2@zip'
+       
+
+
+    // WODM/ILOG Rules SDK zip
+    ilogrulessdkzip 'com.ibm.rules:ilog-rules-sdk:8.10.5.1-20260220@zip'
+
+    // Apache Ant path
+    antzip 'org.apache.ant:apache-ant:1.10.11:bin@zip'
+
+    // Findbugs Zip
+    findbugszip 'com.google.code.findbugs:findbugs:3.0.1@zip'
+    jslintjar 'com.googlecode.jslint4java:jslint4java:2.0.2:icmbuilder@jar'
+
+    // CB uses modified dojo and modified IDX
+    ibmdojozip 'com.ibm.dojo:dojo:1.17.2-20220826-IBM@zip'
+    idxzip 'com.ibm.idx:idx:v1.5.2.13-ga-20160226:icmbuilder@zip'
+       
+       
+    // Create icmbuilder classpath dependencies
+    /* 
+     * Add new icm-builder project dependencies here.  This configuration group is
+     * used to build the .classpath for Eclipse 
+     */
+
+    // Java SDK libraries
+    javasdkwin 'com.ibm.java.sdk:ibm-java-sdk:8.0.8.40:win-i386@zip'
+    javasdklinux 'com.ibm.java.sdk:ibm-java-sdk:8.0.8.40:linux-i386@tar.gz'
+	
+	//aspectj Jars
+	aspectjtoolsjar 'org.aspectj:aspectjtools:1.9.5@jar'
+	aspectjrtjar 'org.aspectj:aspectjrt:1.9.5@jar'
+	// audit common for fisma
+	auditcommonjar 'com.ibm.dba.audit:common:25.0.0.0:@jar'
+
+}
+
+// Create dependencies.properties
+task build_dependency_prop_file {
+    ant.propertyfile(file: "dependencies.properties") {
+        entry(key: '3pt.acmapi.jar', value: configurations.acmapijar.asPath)
+        entry(key: '3pt.jace.jar', value: configurations.jacejar.asPath)
+        entry(key: '3pt.pe.jar', value: configurations.pejar.asPath)
+        entry(key: '3pt.pe.resources.jar', value: configurations.peresourcesjar.asPath)
+        entry(key: '3pt.stax.api.jar', value: configurations.staxapijar.asPath)
+        entry(key: '3pt.casemgmtschema.jar', value: configurations.casemgmtschemajar.asPath)
+        entry(key: '3pt.json4j.jar', value: configurations.json4jjar.asPath)
+      //  entry(key: '3pt.apache.json4j.jar', value: configurations.json4japachejar.asPath)
+        entry(key: '3pt.junit.jar', value: configurations.junitjar.asPath)
+        entry(key: '3pt.j2ee.jar', value: configurations.j2eejar.asPath)
+        entry(key: '3pt.ws.emf.jar', value: configurations.wsemfjar.asPath)
+        entry(key: '3pt.wsfp.emf.jar', value: configurations.wsfpemfjar.asPath)
+        entry(key: '3pt.eclipse.emf.common.jar', value: configurations.eclipseemfcommonjar.asPath)
+        entry(key: '3pt.was.public.jar', value: configurations.waspublicjar.asPath)
+        entry(key: '3pt.elcipse.emf.ecore.jar', value: configurations.eclipseemfecorejar.asPath)
+        entry(key: '3pt.jslint.jar', value: configurations.jslintjar.asPath)
+        entry(key: 'icm.acmbuild.jar', value: configurations.acmbuildjar.asPath)
+		entry(key: 'icm.bpmcaseapi.jar', value: configurations.bpmcaseapijar.asPath)
+		entry(key: 'bpm.bpmjaxwsjar.jar', value: configurations.bpmjaxwsjar.asPath)
+		entry(key: '3pt.aspectjrt.jar', value: configurations.aspectjrtjar.asPath)
+		entry(key: '3pt.aspectjtools.jar', value: configurations.aspectjtoolsjar.asPath)
+		entry(key: '3pt.auditcommon.jar', value: configurations.auditcommonjar.asPath)
+    }
+}
+
+// Create common.properties
+task build_common_prop_file {
+    ant.propertyfile(file: "icm-builder/common.properties") {
+        entry(key: 'productname', value: commonProp['productname'])
+        entry(key: 'productversion', value: commonProp['productversion'])
+        entry(key: 'companyname', value: commonProp['companyname'])
+        entry(key: 'copyright', value: commonProp['copyright'])
+        entry(key: '3pt.dir', value: '..')
+        entry(key: '3pt.apache.ant.dir', value: '${3pt.dir}/' + commonProp['apache.ant.dir'] + '/' + commonProp['apache.ant.dir'])
+
+        entry(key: 'src', value: commonProp['src'])
+        entry(key: 'src.lib', value: commonProp['src.lib'])
+        entry(key: 'servlet.src', value: commonProp['servlet.src'])
+        entry(key: 'output', value: commonProp['output'])
+        entry(key: 'icm.rules.api.lib.dir', value: '${3pt.dir}/' + commonProp['icm.rules.api.lib.dir'])
+        entry(key: 'icm.rules.api.dir', value: '${3pt.dir}/' + commonProp['icm.rules.api.dir'])
+        entry(key: 'javac.args', value: commonProp['javac.args'])
+
+        entry(key: '3pt.jaxb22.dir', value: '${3pt.dir}/' + commonProp['jaxb22.dir'])
+        entry(key: '3pt.jaxb22.lib.dir', value: '${3pt.dir}/' + commonProp['jaxb22.lib.dir'])
+
+        entry(key: 'icm.api.dir', value: '${3pt.dir}/' + commonProp['icm.api.dir'])
+        entry(key: 'icm.schema.dir', value: '${3pt.dir}/' + commonProp['icm.schema.dir'])
+        entry(key: '3pt.ilog.rules.sdk.version', value: commonProp['ilog.rules.sdk.version'])
+        entry(key: '3pt.ilog.rules.sdk.dir', value: '${3pt.dir}/' + commonProp['ilog.rules.sdk.dir'])
+        entry(key: '3pt.pageDesigner.dir', value: '${3pt.dir}/' + commonProp['pageDesigner.dir'])
+        entry(key: '3pt.propertiesDesigner.dir', value: '${3pt.dir}/' + commonProp['propertiesDesigner.dir'])
+
+        entry(key: '3pt.icmProperties.dir', value: '${3pt.dir}/' + commonProp['icmProperties.dir'])
+        entry(key: '3pt.icmProperties.pvd.dir', value: '${3pt.dir}/' + commonProp['icmProperties.pvd.dir'])
+        entry(key: '3pt.icmProperties.pvr.dir', value: '${3pt.dir}/' + commonProp['icmProperties.pvr.dir'])
+
+        entry(key: 'icm.solution.edit.jar', value: commonProp['icm.solution.edit.jar'])
+        entry(key: 'icm.cbproperties.jar', value: commonProp['icm.cbproperties.jar'])
+        entry(key: 'icm.casebuilder.jar', value: commonProp['icm.casebuilder.jar'])
+        entry(key: '3pt.ibmdojo.dir', value: '${3pt.dir}/' + commonProp['ibmdojo.dir'])
+        entry(key: '3pt.idx.dir', value: '${3pt.dir}/' + commonProp['idx.dir'])
+        entry(key: '3pt.findbugs.dir', value: '${3pt.dir}/' + commonProp['findbugs.dir'])
+
+        entry(key: '3pt.reactintegration.dir', value: '${3pt.dir}/' + commonProp['reactintegration.dir'])
+    }
+}
+
+// Extract page Designer zip
+task extract_pageDesignerzip(type: Sync) {
+    from zipTree(configurations. pageDesignerzip.asPath)
+    into commonProp['pageDesigner.dir']
+}
+
+// Extract icm-properties pvd 
+task extract_icmpropertiesPVDzip(type: Sync) {
+    from zipTree(configurations.icmpropertiespvdzip.asPath)
+    into commonProp['icmProperties.pvd.dir']
+}
+
+// Extract icm-properties pvr 
+task extract_icmpropertiesPVRzip(type: Sync) {
+    from zipTree(configurations.icmpropertiespvrzip.asPath)
+    into commonProp['icmProperties.pvr.dir']
+}
+
+// Extract ILOG Rules SDK
+task extract_ilogrulessdk(type: Sync) {
+    from zipTree(configurations.ilogrulessdkzip.asPath)
+    into commonProp['ilog.rules.sdk.dir']
+}
+
+// Extract Apache Ant
+task extract_ant(type: Sync) {
+    from zipTree(configurations.antzip.asPath)
+    into commonProp['apache.ant.dir']
+}
+
+// Extract JAXB22 files
+task extract_jaxb22(type: Sync) {
+    from zipTree(configurations.jaxb22zip.asPath)
+    into commonProp['jaxb22.dir']
+}
+
+// Extract Findbugs files
+task extract_findbugs(type: Sync) {
+    from zipTree(configurations.findbugszip.asPath)
+    into 'findbugs'
+}
+
+// Extract ibmdojo files
+task extract_ibmdojo(type: Sync) {
+    from zipTree(configurations.ibmdojozip.asPath)
+    into commonProp['ibmdojo.dir']
+}
+
+// Extract idx files
+task extract_idx(type: Sync) {
+    from zipTree(configurations.idxzip.asPath)
+    into commonProp['idx.dir']
+}
+    
+// Extract idx files
+task extract_icmschema(type: Sync) {
+    from zipTree(configurations.icmschemazip.asPath)
+    into commonProp['icm.schema.dir']
+}
+
+//Extract react header
+task extract_reactheader(type: Sync) {
+    from zipTree(configurations.bpmreactintegration.asPath)
+    into commonProp['reactintegration.dir']
+}
+
+
+// Download and extract IBM Java SDK
+import org.apache.tools.ant.taskdefs.condition.Os
+task extract_java_sdk(type: Sync) {
+    if (Os.isFamily(Os.FAMILY_WINDOWS)) { // Extract Windows SDK
+        from zipTree(configurations.javasdkwin.asPath)
+    }
+    else { // Extract Linux SDK
+        from tarTree(resources.gzip(configurations.javasdklinux.asPath))
+    }
+    into commonProp['3pt.java.sdk']
+}
+
+task copy_java_linux(type: Copy) {
+    if (Os.isFamily(Os.FAMILY_WINDOWS)) { // Do nothing
+    }
+    else { // Copy java binary from the JRE bin to the SDK bin
+        from commonProp['3pt.java.sdk'] + '/java/sdk/jre/bin'
+        include 'java'
+    }
+    into commonProp['3pt.java.sdk'] + '/java/sdk/bin'
+}
+
+copy_java_linux.mustRunAfter 'extract_java_sdk'
+
+// Edit gradle.properties to set Java path
+task set_java_home {
+    doLast {
+        ant.propertyfile(file: 'gradle.properties') {
+            if (Os.isFamily(Os.FAMILY_WINDOWS)) { // Extract Windows SDK
+                entry(key: 'org.gradle.java.home', value: "$projectDir/" + commonProp['3pt.java.sdk'] + '/sdk')
+            }
+            else { // Extract Linux SDK
+                entry(key: 'org.gradle.java.home', value: "$projectDir/" + commonProp['3pt.java.sdk'] + '/java/sdk')
+            }
+        }
+    }
+}
+
+task setup_java(dependsOn: ['extract_java_sdk', 'copy_java_linux', 'set_java_home'])
+
+// Compress the cb-web-form.xml and cb-web-sso.xml files
+task compress_cb_web_files(type: Zip) {
+    from 'CDROOT/cb-web-form.xml'
+    from 'CDROOT/cb-web-sso.xml'
+    baseName = 'cb-web-files'
+}
+compress_cb_web_files.mustRunAfter 'clearDistFolder'
+
+task writeNewPom {
+    pom {
+        project {
+            groupId 'com.ibm.icm.icmbuilder'
+            artifactId 'acmrulesapi'
+            packaging 'jar'
+        }
+    }.writeTo("$buildDir/publications/mavenICMRulesAPIJar/pom-default.xml")
+    pom {
+        project {
+            groupId 'com.ibm.icm.icmbuilder'
+            artifactId 'ICMSolutionEdit'
+            packaging 'jar'
+        }
+    }.writeTo("$buildDir/publications/mavenICMSolutionEditJar/pom-default.xml")
+    pom {
+        project {
+            groupId 'com.ibm.icm.icmbuilder'
+            artifactId 'ICMSolutionEdit'
+            packaging 'jar'
+            version versionICN
+        }
+    }.writeTo("$buildDir/publications/mavenICMSolutionEditJarICN/pom-default.xml")
+    pom {
+        project {
+            groupId 'com.ibm.icm.icmbuilder'
+            artifactId 'CaseBuilder'
+            packaging 'ear'
+            version version
+        }
+    }.writeTo("$buildDir/publications/mavenICMCaseBuilderEar/pom-default.xml")
+    pom {
+        project {
+            groupId 'com.ibm.icm.icmbuilder'
+            artifactId 'cb-web-files'
+            packaging 'zip'
+        }
+    }.writeTo("$buildDir/publications/mavenICMCBWebFilesZip/pom-default.xml")
+    pom {
+        project {
+            groupId 'com.ibm.icm.icmbuilder'
+            artifactId 'cbConfig'
+            packaging 'properties'
+        }
+    }.writeTo("$buildDir/publications/mavenICMCBConfigProperties/pom-default.xml")
+}
+    
+artifactoryPublish {
+    dependsOn writeNewPom
+}
+
+artifactory {
+    contextUrl = ARTIFACTORY_URL
+    publish {
+        repository {
+            if (version == snapshotVersion)
+            {    // If no version specified, publish as a snapshot
+                repoKey = 'ecmcase-libs-snapshot-local'   //The Artifactory repository key to publish to
+            }
+            else
+            {    // Version specified, so publish as a release
+                repoKey = 'ecmcase-libs-release-local'
+            }
+            username = ARTIFACTORY_USERNAME    //The publisher user name
+            password = artifactoryPassword    //The publisher password
+        }       
+        defaults {
+            publications ('mavenICMRulesAPIJar', 'mavenICMSolutionEditJar', 'mavenICMSolutionEditJarICN', 'mavenICMCaseBuilderEar', 'mavenICMCBWebFilesZip', 'mavenICMCBConfigProperties')
+        }
+    }
+}
+publishing {
+    publications {
+        mavenICMRulesAPIJar(MavenPublication) {
+            artifact commonProp['icm.rules.api.lib.dir'] + '/acmrulesapi.jar'
+            artifactId 'acmrulesapi'
+            groupId 'com.ibm.icm.icmbuilder'
+            
+        }
+        mavenICMSolutionEditJar(MavenPublication) {
+            artifact 'icm-builder/lib/ICMSolutionEdit.jar'
+            artifactId 'ICMSolutionEdit'
+            groupId 'com.ibm.icm.icmbuilder'
+            version version
+        }
+        mavenICMSolutionEditJarICN(MavenPublication) {
+            artifact 'CDROOT/ICMSolutionEdit.jar'
+            artifactId 'ICMSolutionEdit'
+            groupId 'com.ibm.icm.icmbuilder'
+            version versionICN
+        }
+        mavenICMCaseBuilderEar(MavenPublication) {
+            artifact  'icm-builder/bin/CaseBuilder.ear'
+            artifactId 'CaseBuilder'
+            groupId 'com.ibm.icm.icmbuilder'
+            
+        }
+        mavenICMCBWebFilesZip(MavenPublication) {
+            artifact compress_cb_web_files
+            artifactId 'cb-web-files'
+            groupId 'com.ibm.icm.icmbuilder'
+        }
+        mavenICMCBConfigProperties(MavenPublication) {
+            artifact 'icm-builder/resources/WEB-INF/cbConfig.properties'
+            artifactId 'cbConfig'
+            groupId 'com.ibm.icm.icmbuilder'
+        }
+    }
+}
+
+clean {
+    delete 'apache-ant-1.7.0'
+    delete 'apache-ant-1.9.9'
+	delete 'apache-ant-1.10.11'
+    delete 'icm-properties'
+    delete 'ibmdojo'
+    delete 'idx'
+    delete 'ilog-rules-sdk'
+    delete 'pageDesigner'
+    delete 'icm-schema'
+    delete 'reactintegration'
+    delete 'CDROOT'
+    delete 'findbugs'
+    delete 'jaxb-ri-2.1'
+    delete 'jaxb-ri-2.2'
+    delete 'icm-builder/lib'
+    delete 'icm-builder/bin'
+    delete 'icm-builder/MANIFEST.MF'
+    delete 'icm-builder/findbugsReports'
+    delete 'icm-builder/WebContent/release'
+    delete 'icm-builder/WebContent/WEB-INF'
+    delete 'icm-builder/WebContent/libs'
+    delete 'icm-builder/WebContent/pageDesigner'
+    delete 'icm-builder/WebContent/propertiesDesigner'
+    delete fileTree('icm-builder/custom-dojo-ibm-release') {
+        exclude 'ilog'
+        exclude 'sprite/src'
+        exclude 'caseBuilderAll.profile.js'             
+    }
+    
+    delete 'icm-rules-api/lib'
+    delete 'icm-rules-api/bin'
+}
+
+task prepare_icmbuilder_build(dependsOn: ['clearDistFolder', 'extract_pageDesignerzip', 'extract_icmpropertiesPVDzip', 'extract_icmpropertiesPVRzip', 'extract_ilogrulessdk', 'extract_ant', 'extract_jaxb22', 'extract_findbugs', 'extract_ibmdojo', 'extract_idx', 'extract_icmschema', 'extract_reactheader', 'build_dependency_prop_file', 'build_common_prop_file'])
+
+// Import Ant script near the end, so that dependencies.properties is created and ready for ant script
+task import_ant {
+    ant.importBuild 'icm-builder/build.xml'
+}
+
+
+package.mustRunAfter 'prepare_icmbuilder_build', 'import_ant'
+
+task icmbuilder_findbugs(dependsOn: ['extract_findbugs']) {
+
+    doLast {
+    
+        def findbugsReportsDir = new File('icm-builder/findbugsReports')
+        if( !findbugsReportsDir.exists() ) {
+            findbugsReportsDir.mkdirs()
+        }
+
+        ant.taskdef(name: 'icmfindbugs',
+                    classname: 'edu.umd.cs.findbugs.anttask.FindBugsTask',
+                    classpath: commonProp['findbugs.dir'] + '/lib/findbugs-ant.jar')
+        ant.icmfindbugs(home: commonProp['findbugs.dir'],
+                     output: 'html',
+                     outputFile: 'icm-builder/findbugsReports/icmcb_java.html',
+                     excludefilter: 'icm-builder/excludeFilter.xml') {
+            sourcePath(path: commonProp.restsrc)
+            "class"(location: 'icm-builder/lib/CaseBuilder.jar')
+            //auxClasspath(refid: configurations.icmapifindbugs)
+        }
+    }
+
+}
+
+task icmbuilder_jslint {
+
+    doLast {
+
+        def findbugsReportsDir = new File('icm-builder/findbugsReports')
+            if( !findbugsReportsDir.exists() ) {
+                findbugsReportsDir.mkdirs()
+            }
+
+        ant.taskdef(name: 'icmjslint',
+                        classname: 'com.googlecode.jslint4java.ant.JSLintTask',
+                        classpath: configurations.jslintjar.asPath)
+                    
+        ant.icmjslint(haltOnFailure: "false",  options: "anon,bitwise,cap,continue,css,debug,devel,eqeq,es5,evil,forin,fragment,newcap,nomen,on,plusplus,regexp,sloppy,sub,undef,unparam,vars,white,maxerr=10000") {
+        
+            formatter(type: 'xml', destfile: 'icm-builder/findbugsReports/icmcb_js.xml')
+                fileset(dir: 'icm-builder/WebContent/designer',
+                        includes: '**/*.js')
+        }
+    }
+
+}
+
+task icmbuilder_build(dependsOn: ['prepare_icmbuilder_build', 'import_ant', 'package','icmbuilder_findbugs','icmbuilder_jslint','eclipse'])
+
+icmbuilder_findbugs.mustRunAfter 'package'
+
+
+disks.mustRunAfter 'icmbuilder_build'
+
+// Copies CDROOT to the parent project directory
+task copyDependencyReport(type: Copy, dependsOn: ['dependencyReport', 'disks']) {
+    from 'build/reports/project/dependencies.txt'
+    into 'CDROOT'
+}
+
+import groovyx.net.http.HTTPBuilder
+import static groovyx.net.http.ContentType.*
+import static groovyx.net.http.Method.*
+import groovy.json.*
+task cullBuilds {
+    doLast {
+        if (version != snapshotVersion)
+        {   // Version specified, so cull released files
+        
+            // First, determine the build line we are currently using
+            int lastPeriodIndex = version.lastIndexOf(".");
+            String versionPrefix = version.substring(0, lastPeriodIndex + 1)
+            String versionQuery = versionPrefix + "*";
+            int lastDashIndex = versionICN.lastIndexOf("-");
+            String versionPrefixICN = versionICN.substring(0, lastDashIndex + 1)
+            String versionQueryICN = versionPrefixICN + "*";
+            println("Culling artifacts with the version: $versionQuery and $versionQueryICN");
+            
+            // Next, get the list of all artifact versions under com.ibm.icm.icmbuilder
+            def artifactSearchUri = 'ui/artifactactions/deleteversions?path=com%2Fibm%2Ficm%2Ficmbuilder&repoKey=ecmcase-libs-release-local'
+            def authString = "${ARTIFACTORY_USERNAME}:${artifactoryPassword}".getBytes().encodeBase64().toString()            
+            def urlHeaders = [ Accept: 'application/json', Authorization: 'Basic ' + authString ]
+            def jsonText = new URL( "${ARTIFACTORY_URL}/${artifactSearchUri}" ).getText( requestProperties: urlHeaders )
+            def versionsJson = new JsonSlurper().parseText( jsonText ) as Map
+            assert versionsJson.versions != null
+            
+            // Make a list of all versions under com.ibm.icm.icmbuilder for the current build line
+            def versionList = []
+            versionsJson.versions.each {
+                if ((it.version ==~ versionQuery) && (it.version.length() > lastPeriodIndex)) {
+                    // Only look at the last set of digits so that we can sort them
+                    // For example, for icmbuilder5.3.1.000.1, only save the 1 in the list
+                    versionList.add(it.version.substring(lastPeriodIndex + 1))
+                }
+            }
+            
+            // Keep the newest five builds and delete older versions
+            def fullVersionList = []
+            versionList.sort().dropRight(5).each {
+                // Recombine the version prefix and the last set of digits and put them in a list
+                fullVersionList.add(versionPrefix + it)
+                fullVersionList.add(versionPrefixICN + Integer.parseInt(it))
+            }
+            println "Culling the following builds: $fullVersionList"
+            
+            // Gather the list of all artifacts with the versions to be culled
+            def deleteList = []
+            versionsJson.versions.each {
+                //println "Entry: $it"
+                if (fullVersionList.contains(it.version)) {
+                    deleteList.add(it)
+                }
+            }
+            
+            // Delete the older artifacts if there are more than 5 versions
+            if (fullVersionList.size() > 0) {
+                def deleteJSON = new JsonBuilder(deleteList)
+                println "Deleting the following artifacts: " + JsonOutput.prettyPrint(deleteJSON.toString())
+                def artifactDeleteUri = 'ui/artifactactions/deleteversions'
+                def deleteCall = new groovyx.net.http.HTTPBuilder("${ARTIFACTORY_URL}/${artifactDeleteUri}")
+                deleteCall.request(POST, JSON ) { req ->
+                    body = deleteJSON.toString()
+                    headers = urlHeaders
+
+                    response.success = { resp, json ->
+                        println "$resp.statusLine   $json"
+                    }
+                    
+                    response.failure = { resp, json ->
+                        println "$resp.statusLine   $json"
+                    }
+                }
+            }
+        }
+    }
+}
+
+task clearDistFolder(type: Delete) {
+    delete fileTree("$buildDir/distributions") {
+        def versionPattern = '**' + version + '**'
+        exclude versionPattern
+    }
+}
+
+task icmbuilder_disks(dependsOn: ['icmbuilder_build', 'disks', 'dependencyReport', 'copyDependencyReport'])
+
+artifactoryPublish.mustRunAfter 'icmbuilder_disks'
+cullBuilds.mustRunAfter 'artifactoryPublish'
+
+task icmbuilder_publish(dependsOn: ['icmbuilder_disks', 'artifactoryPublish', 'cullBuilds'])
+
+// Defines the contents of the Eclipse .classpath files
+eclipse {
+    classpath {
+        plusConfigurations += [ configurations.icmbuildercp ]
+        containers 'org.eclipse.jdt.launching.JRE_CONTAINER'
+        file {
+            whenMerged {
+                entries.removeAll { it.kind == 'con' && it.path != 'org.eclipse.jdt.launching.JRE_CONTAINER'}
+            }
+        }
+    }
+}
+
+// Copy .classpath to icm-builder, and append source files
+task create_icmbuilder_classpath(dependsOn: eclipseClasspath) {
+    doLast {
+        def xmlFile = ".classpath"
+        def xml = new XmlParser().parse(xmlFile)
+        xml.appendNode('classpathentry', [kind: 'src', path: 'servlet-src'])
+        // Replace the default container
+        def conNode = xml.find { it.attributes().get('path').startsWith('org.eclipse.jdt.launching.JRE_CONTAINER') }
+        conNode.attributes().put('path', 'org.eclipse.jdt.launching.JRE_CONTAINER')
+        xml.appendNode('classpathentry', [kind: 'lib', path: "$projectDir" + '/' + commonProp['ilog.rules.sdk.dir'] +'/bcel-5.1.jar'])
+        xml.appendNode('classpathentry', [kind: 'lib', path: "$projectDir" + '/' + commonProp['ilog.rules.sdk.dir'] +'/com.ibm.bdsl.runtime.jar'])
+        xml.appendNode('classpathentry', [kind: 'lib', path: "$projectDir" + '/' + commonProp['ilog.rules.sdk.dir'] +'/jdom2-2.0.6.1.jar'])
+        xml.appendNode('classpathentry', [kind: 'lib', path: "$projectDir" + '/' + commonProp['ilog.rules.sdk.dir'] +'/jrules-engine.jar'])
+        xml.appendNode('classpathentry', [kind: 'lib', path: "$projectDir" + '/' + commonProp['ilog.rules.sdk.dir'] +'/mina-core-2.0.1-IBM.jar'])
+        xml.appendNode('classpathentry', [kind: 'lib', path: "$projectDir" + '/' + commonProp['ilog.rules.sdk.dir'] +'/slf4j-api-1.5.8.jar'])
+        xml.appendNode('classpathentry', [kind: 'lib', path: "$projectDir" + '/' + commonProp['ilog.rules.sdk.dir'] +'/slf4j-simple-1.5.8.jar'])
+        xml.appendNode('classpathentry', [kind: 'lib', path: "$projectDir" + '/' + commonProp['ilog.rules.sdk.dir'] +'/commons-codec-1.21.0.jar'])
+        xml.appendNode('classpathentry', [kind: 'lib', path: "$projectDir" + '/' + commonProp['ilog.rules.sdk.dir'] +'/com.ibm.rules.sdk.builder-8.8.1.0.jar'])
+        xml.appendNode('classpathentry', [kind: 'lib', path: "$projectDir" + '/' + commonProp['ilog.rules.sdk.dir'] +'/ilog.rules.brl.bal.jar'])
+        xml.appendNode('classpathentry', [kind: 'lib', path: "$projectDir" + '/' + commonProp['ilog.rules.sdk.dir'] +'/ilog.rules.brl.bom.jar'])
+        xml.appendNode('classpathentry', [kind: 'lib', path: "$projectDir" + '/' + commonProp['ilog.rules.sdk.dir'] +'/ilog.rules.brl.brldf.jar'])
+        xml.appendNode('classpathentry', [kind: 'lib', path: "$projectDir" + '/' + commonProp['ilog.rules.sdk.dir'] +'/ilog.rules.brl.parsing.jar'])
+        xml.appendNode('classpathentry', [kind: 'lib', path: "$projectDir" + '/' + commonProp['ilog.rules.sdk.dir'] +'/ilog.rules.dt.jar'])
+        xml.appendNode('classpathentry', [kind: 'lib', path: "$projectDir" + '/' + commonProp['ilog.rules.sdk.dir'] +'/ilog.rules.vocabulary.bom.jar'])
+        xml.appendNode('classpathentry', [kind: 'lib', path: "$projectDir" + '/' + commonProp['ilog.rules.sdk.dir'] +'/ilog.rules.vocabulary.model.jar'])
+        xml.appendNode('classpathentry', [kind: 'lib', path: "$projectDir" + '/' + commonProp['ilog.rules.sdk.dir'] +'/web/com.ibm.rules.bdsl.core.bdsl-core-dt.jar'])
+        xml.appendNode('classpathentry', [kind: 'lib', path: "$projectDir" + '/' + commonProp['ilog.rules.sdk.dir'] +'/web/com.ibm.rules.bdsl.web.bdsl-web-dt.jar'])
+        xml.appendNode('classpathentry', [kind: 'lib', path: "$projectDir" + '/' + commonProp['ilog.rules.sdk.dir'] +'/web/com.ibm.bdsl.web.editor.jar'])
+        
+        xml.appendNode('classpathentry', [kind: 'lib', path: "$projectDir" + '/icm-builder/lib/cbjaxb.jar'])
+         
+         
+          
+         
+        xml.appendNode('classpathentry', [kind: 'lib', path: "$projectDir" + '/' + commonProp['jaxb22.lib.dir'] + '/jaxb-impl.jar'])
+
+        xml.appendNode('classpathentry', [kind: 'lib', path: configurations.jacejar.asPath])
+        xml.appendNode('classpathentry', [kind: 'lib', path: configurations.peresourcesjar.asPath])
+        xml.appendNode('classpathentry', [kind: 'lib', path: configurations.pejar.asPath])
+
+        xml.appendNode('classpathentry', [kind: 'lib', path: configurations.staxapijar.asPath])
+
+        xml.appendNode('classpathentry', [kind: 'lib', path: configurations.junitjar.asPath])
+        xml.appendNode('classpathentry', [kind: 'lib', path: configurations.json4jjar.asPath])
+        xml.appendNode('classpathentry', [kind: 'lib', path: configurations.json4japachejar.asPath])
+     
+        xml.appendNode('classpathentry', [kind: 'lib', path: configurations.j2eejar.asPath])
+        xml.appendNode('classpathentry', [kind: 'lib', path: configurations.wsemfjar.asPath])
+        xml.appendNode('classpathentry', [kind: 'lib', path: configurations.wsfpemfjar.asPath])
+        xml.appendNode('classpathentry', [kind: 'lib', path: configurations.eclipseemfcommonjar.asPath])
+        xml.appendNode('classpathentry', [kind: 'lib', path: configurations.eclipseemfecorejar.asPath])
+        xml.appendNode('classpathentry', [kind: 'lib', path: configurations.waspublicjar.asPath])
+
+        xml.appendNode('classpathentry', [kind: 'lib', path: configurations.acmapijar.asPath])
+		xml.appendNode('classpathentry', [kind: 'lib', path: configurations.bpmcaseapijar.asPath])
+		xml.appendNode('classpathentry', [kind: 'lib', path: configurations.bpmjaxwsjar.asPath])
+        xml.appendNode('classpathentry', [kind: 'lib', path: "$projectDir" + '/icm-rules-api/lib/acmrulesapi.jar'] )
+        xml.appendNode('classpathentry', [kind: 'lib', path: "$projectDir" + '/' + commonProp['ilog.rules.sdk.dir'] +'/commons-logging-1.3.5.jar'])
+
+		xml.appendNode('classpathentry', [kind: 'lib', path: configurations.aspectjtoolsjar.asPath])
+		xml.appendNode('classpathentry', [kind: 'lib', path: configurations.aspectjrtjar.asPath])
+
+        xml.appendNode('classpathentry', [kind: 'output', path: 'WebContent/WEB-INF/classes'])
+	
+	
+        new XmlNodePrinter(new PrintWriter(new FileWriter('icm-builder/.classpath'))).print(xml)
+    }
+}
+
+// Copy .classpath to icm-rules-api, and append source files
+task create_icmrulesapi_classpath(dependsOn: eclipseClasspath) {
+    doLast {
+        def xmlFile = ".classpath"
+        def xml = new XmlParser().parse(xmlFile)
+        xml.appendNode('classpathentry', [kind: 'src', path: 'src'])
+        xml.appendNode('classpathentry', [kind: 'lib', path: "$projectDir" + '/' + commonProp['ilog.rules.sdk.dir'] +'/jrules-engine.jar'])
+        xml.appendNode('classpathentry', [kind: 'lib', path: "$projectDir" + '/' + commonProp['ilog.rules.sdk.dir'] +'/com.ibm.rules.sdk.builder-8.8.1.0.jar'])
+        xml.appendNode('classpathentry', [kind: 'lib', path: "$projectDir" + '/' + commonProp['ilog.rules.sdk.dir'] +'/commons-logging-1.3.5.jar'])
+        xml.appendNode('classpathentry', [kind: 'lib', path: "$projectDir" + '/' + commonProp['ilog.rules.sdk.dir'] +'/ilog.rules.brl.bal.jar'])
+        xml.appendNode('classpathentry', [kind: 'lib', path: "$projectDir" + '/' + commonProp['ilog.rules.sdk.dir'] +'/ilog.rules.brl.brldf.jar'])
+        xml.appendNode('classpathentry', [kind: 'lib', path: "$projectDir" + '/' + commonProp['ilog.rules.sdk.dir'] +'/ilog.rules.brl.parsing.jar'])
+        xml.appendNode('classpathentry', [kind: 'lib', path: "$projectDir" + '/' + commonProp['ilog.rules.sdk.dir'] +'/ilog.rules.vocabulary.bom.jar'])
+        xml.appendNode('classpathentry', [kind: 'lib', path: "$projectDir" + '/' + commonProp['ilog.rules.sdk.dir'] +'/ilog.rules.dt.jar'])
+        xml.appendNode('classpathentry', [kind: 'lib', path: "$projectDir" + '/' + commonProp['ilog.rules.sdk.dir'] +'/ilog.rules.vocabulary.model.jar'])
+        xml.appendNode('classpathentry', [kind: 'lib', path: "$projectDir" + '/' + commonProp['ilog.rules.sdk.dir'] +'/jrules-res-execution.jar'])
+        xml.appendNode('classpathentry', [kind: 'lib', path: "$projectDir" + '/' + commonProp['ilog.rules.sdk.dir'] +'/web/json4j-1.0.0.2.jar'])
+        xml.appendNode('classpathentry', [kind: 'lib', path: "$projectDir" + '/' + commonProp['ilog.rules.sdk.dir'] +'/web/com.ibm.rules.bdsl.core.bdsl-core-dt.jar'])
+        xml.appendNode('classpathentry', [kind: 'lib', path: "$projectDir" + '/' + commonProp['ilog.rules.sdk.dir'] +'/ilog.rules.shared.jar'])
+        xml.appendNode('classpathentry', [kind: 'lib', path: configurations.casemgmtschemajar.asPath])
+        xml.appendNode('classpathentry', [kind: 'lib', path: configurations.acmapijar.asPath])
+        xml.appendNode('classpathentry', [kind: 'lib', path: "$projectDir" + '/' + commonProp['jaxb22.lib.dir'] + '/jaxb-impl.jar'])
+		xml.appendNode('classpathentry', [kind: 'lib', path: configurations.aspectjtoolsjar.asPath])
+		xml.appendNode('classpathentry', [kind: 'lib', path: configurations.aspectjrtjar.asPath])
+		
+        xml.appendNode('classpathentry', [kind: 'output', path: 'bin'])
+
+        
+        
+        // Replace the default container
+        def conNode = xml.find { it.attributes().get('path').startsWith('org.eclipse.jdt.launching.JRE_CONTAINER') }
+        conNode.attributes().put('path', 'org.eclipse.jdt.launching.JRE_CONTAINER')
+        new XmlNodePrinter(new PrintWriter(new FileWriter('icm-rules-api/.classpath'))).print(xml)
+    }
+}
+
+task eclipse (dependsOn: ['eclipseClasspath','create_icmbuilder_classpath','create_icmrulesapi_classpath'],overwrite: true)
+
