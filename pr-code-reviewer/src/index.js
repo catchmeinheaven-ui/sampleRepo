@@ -28,7 +28,7 @@ async function main() {
 
     const config = await ConfigLoader.load();
     const githubService = new GitHubService(octokit, logger);
-    const codeReviewer = new CodeReviewer(config, logger);
+    const codeReviewer = new CodeReviewer(config, logger, githubService);
 
     // Get PR details from environment
     const prNumber = parseInt(process.env.PR_NUMBER, 10);

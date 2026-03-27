@@ -8,9 +8,10 @@ import { AIReviewer } from './AIReviewer.js';
  * Main code reviewer that orchestrates all review types
  */
 export class CodeReviewer {
-  constructor(config, logger) {
+  constructor(config, logger, githubService = null) {
     this.config = config;
     this.logger = logger;
+    this.githubService = githubService;
 
     // Initialize specialized reviewers
     this.reviewers = {
@@ -115,10 +116,35 @@ export class CodeReviewer {
       }
     }
 
-    // Run AI review if available
-    if (this.reviewers.ai && fileContent) {
+    // Run AI review if available - fetch full file content for better context
+    if (this.reviewers.ai && fileContent && this.githubService) {
       try {
-        const aiIssues = await this.reviewers.ai.review(file.filename, fileContent, fileExtension);
+        // For AI review, we need the full file content, not just the diff
+        // The diff doesn't include variable declarations that might be far from the changed lines
+        let fullFileContent = fileContent;
+        
+        // Try to fetch full file content from GitHub
+        try {
+          // Fetch the file content from the HEAD ref (the PR branch)
+          fullFileContent = await this.githubService.getFileContent(
+            owner,
+            repo,
+            file.filename,
+            headRef
+          );
+          
+          if (fullFileContent) {
+            this.logger.info(`Fetched full file content for AI review: ${file.filename} (${fullFileContent.length} chars)`);
+          } else {
+            this.logger.warn(`Could not fetch full file content, using diff only`);
+            fullFileContent = fileContent; // Fallback to diff
+          }
+        } catch (fetchError) {
+          this.logger.warn(`Error fetching full file content, using diff only: ${fetchError.message}`);
+          fullFileContent = fileContent; // Fallback to diff
+        }
+        
+        const aiIssues = await this.reviewers.ai.review(file.filename, fullFileContent, fileExtension);
         fileReview.issues.push(...aiIssues);
       } catch (error) {
         this.logger.error('Error in AI review:', error);
