@@ -219,39 +219,46 @@ ai_review:
       Format response as JSON array: [{"type": "syntax_error", "severity": "critical", "title": "...", "message": "...", "line": 10, "suggestion": "..."}]
     
     review_template: |
-      YOU ARE A JAVA COMPILER. Your job is to find COMPILATION ERRORS that will prevent the code from compiling.
+      YOU ARE A SYNTAX CHECKER AND COMPILER. Find SYNTAX ERRORS and COMPILATION ERRORS.
       
       File: {file_path}
       Language: {extension}
       
-      CODE DIFF (lines with + are NEW/CHANGED code):
+      COMPLETE FILE CONTENT:
       {diff}
       
-      CRITICAL COMPILATION ERRORS TO FIND:
+      CRITICAL ERRORS TO FIND:
       
-      1. TYPE MISMATCHES (WILL NOT COMPILE):
-         Example: private int top; ... this.top = "string";
-         → This is CRITICAL ERROR: Cannot assign String to int variable
+      1. MISSING COMMAS in object/array literals:
+         JavaScript: { a: 1, b: 2 c: 3 } → MISSING COMMA after b: 2
+         Python: [1, 2 3] → MISSING COMMA after 2
          
-      2. MISSING SEMICOLONS (WILL NOT COMPILE):
-         Example: int x = 5
-         → This is CRITICAL ERROR: Missing semicolon
+      2. MISSING SEMICOLONS (where required):
+         JavaScript/Java/C++: int x = 5 → MISSING SEMICOLON
+         
+      3. TYPE MISMATCHES:
+         Java: int x = "string" → Cannot assign String to int
+         TypeScript: let x: number = "text" → Type mismatch
+         
+      4. SYNTAX ERRORS:
+         - Unclosed brackets, parentheses, quotes
+         - Invalid operators or keywords
+         - Malformed expressions
       
-      3. UNDEFINED VARIABLES (WILL NOT COMPILE):
-         Example: x = 5; (where x is not declared)
-         → This is CRITICAL ERROR: Variable not declared
+      5. UNDEFINED VARIABLES:
+         Using variables before declaration
       
       INSTRUCTIONS:
-      - Look at EVERY line starting with + (these are the new/changed lines)
-      - Check if the code will compile
-      - If you find "this.top = \"string\"" where top is declared as int → FLAG IT AS CRITICAL
-      - If you find missing semicolons → FLAG THEM AS CRITICAL
-      - If code compiles successfully → return []
+      - Analyze the ENTIRE file for syntax errors
+      - Pay special attention to object literals, arrays, and punctuation
+      - Check EVERY comma, semicolon, bracket
+      - If you see two properties without a comma between them → FLAG IT
+      - Example: invalidField: null propsDetails: null → MISSING COMMA
       
-      RESPONSE FORMAT (JSON only):
-      [{"type": "type_mismatch", "severity": "critical", "title": "Type mismatch: Cannot assign String to int", "message": "Variable 'top' is declared as int but assigned a String value", "line": 1, "suggestion": "Remove the string assignment or change variable type"}]
+      RESPONSE FORMAT (JSON array only, no markdown):
+      [{"type": "syntax_error", "severity": "critical", "title": "Missing comma in object literal", "message": "Missing comma after 'invalidField: null' on line 22", "line": 22, "suggestion": "Add comma after invalidField: null"}]
       
-      If NO errors found, return: []
+      If NO errors, return: []
 
 # GitHub integration
 github:
