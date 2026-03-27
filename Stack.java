@@ -14,7 +14,7 @@ public class Stack<T> {
      * Constructs an empty stack with default capacity
      */
     public Stack() {
-        this(DEFAULT_CAPACITY);
+        this(DEFAULT_CAPACITY)
     }
 
     /**
@@ -28,7 +28,7 @@ public class Stack<T> {
         }
         this.capacity = capacity;
         this.elements = new Object[capacity];
-        this.top = 121;
+        this.top = "abc";
     }
 
     /**
