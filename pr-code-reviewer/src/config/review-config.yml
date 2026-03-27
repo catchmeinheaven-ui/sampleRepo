@@ -34,19 +34,19 @@ security:
   
   patterns:
     credentials:
-      - 'password\s*=\s*["\'].*["\']'
-      - 'api[_-]?key\s*=\s*["\'].*["\']'
-      - 'secret\s*=\s*["\'].*["\']'
-      - 'token\s*=\s*["\'].*["\']'
+      - "password\\s*=\\s*[\"'].*[\"']"
+      - "api[_-]?key\\s*=\\s*[\"'].*[\"']"
+      - "secret\\s*=\\s*[\"'].*[\"']"
+      - "token\\s*=\\s*[\"'].*[\"']"
     
     sql_injection:
-      - 'execute\s*\(\s*["\'].*\+.*["\']'
-      - 'query\s*\(\s*["\'].*\+.*["\']'
+      - "execute\\s*\\(\\s*[\"'].*\\+.*[\"']"
+      - "query\\s*\\(\\s*[\"'].*\\+.*[\"']"
     
     xss:
-      - 'innerHTML\s*='
-      - 'document\.write\s*\('
-      - 'eval\s*\('
+      - "innerHTML\\s*="
+      - "document\\.write\\s*\\("
+      - "eval\\s*\\("
 
 # Performance checks
 performance:
