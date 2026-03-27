@@ -76,6 +76,8 @@ export class AIReviewer {
       ? content.substring(0, maxContentLength) + '\n... (truncated)'
       : content;
 
+    this.logger.info(`Diff content being sent to AI for ${filename}:\n${truncatedContent}`);
+
     return template
       .replace('{file_path}', filename)
       .replace('{diff}', truncatedContent)
