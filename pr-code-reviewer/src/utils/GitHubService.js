@@ -87,7 +87,7 @@ export class GitHubService {
         event,
       });
 
-      this.logger.info(`Posted review with ${comments.length} comments`);
+      this.logger.info(`Posted review summary`);
     } catch (error) {
       this.logger.error('Error posting review:', error);
       // Fallback to posting a simple comment
